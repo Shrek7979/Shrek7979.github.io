@@ -388,6 +388,38 @@ body[data-screen="play"] .board{width:min(100%, max(200px, calc((100dvh - 312px)
 #bgfade.on{opacity:1}
 .rscroll>*{flex:none}
 
+/* 모바일 최적화: 점수·콤보·시간과 버튼을 한 줄로, 판은 최대한 크게 */
+.cab{gap:8px}
+.mission{position:relative; padding:17px 10px 6px}
+.mission small{position:absolute; left:12px; top:3px; font-size:12px; opacity:.85}
+.mission p{font-size:clamp(20px,5.8vw,28px); min-height:2.3em}
+#hudWrap{display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 8px; padding:5px 10px 7px}
+.hud{gap:4px; align-items:center}
+.hud div,.hud div:nth-child(3){align-items:center}
+.hud small{font-size:11px; line-height:1.1} .hud strong{font-size:clamp(18px,5.6vw,23px); white-space:nowrap}
+.hudbtn{display:flex; gap:4px}
+.hudbtn .ghost{font-size:13px; padding:5px 8px; border-width:2px; box-shadow:0 2px 0 #1E2433; border-radius:8px; min-height:32px}
+.ghost.off{opacity:.5; text-decoration:line-through}
+#hudWrap .bar{grid-column:1/-1; height:8px}
+.boardWrap{padding:5% 0 0}
+body[data-screen="play"] .board{width:min(100%, max(200px, calc((100dvh - 178px) / 1.36)))}
+@media (min-width:900px){
+  body[data-screen="play"] .cab{grid-template-columns:1fr 400px; grid-template-areas:"mission hud" "deck deck"}
+  body[data-screen="play"] .board{width:min(720px, calc((100dvh - 150px) / 1.36))}
+  body[data-screen="play"] .hud strong{font-size:28px}
+  .hudbtn .ghost{font-size:15px; padding:6px 10px}
+}
+@media (orientation:landscape) and (max-height:560px){
+  body[data-screen="play"] .cab{grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"mission deck" "hud deck"; grid-template-rows:auto 1fr; align-items:start}
+  body[data-screen="play"] .board{width:calc((100dvh - 34px) / 1.36)}
+  body[data-screen="play"] .hud strong{font-size:22px}
+}
+
+@media (max-width:899px) and (orientation:portrait){
+  body[data-screen="play"] .cab{flex:1 1 auto; min-height:0}
+  body[data-screen="play"] .boardWrap{margin-block:auto}
+}
+
 /*GEO*/
 .m{aspect-ratio:691/750} .pic{aspect-ratio:691/750}
 .m::before,.pic::before{display:none}
@@ -445,8 +477,9 @@ body[data-screen="result"] :is(#start,#cab){display:none}
     <div class="hud">
       <div><small>점수</small><strong id="score">0</strong></div>
       <div><small>콤보</small><strong id="combo">0</strong></div>
-      <div><small>남은 시간</small><strong id="time">60</strong></div>
+      <div><small>시간</small><strong id="time">60</strong></div>
     </div>
+    <div class="hudbtn"><button class="ghost tgl-bgm ic" type="button">음악</button><button class="ghost tgl-sfx ic" type="button">소리</button><button class="ghost" id="quit" type="button">그만</button></div>
     <div class="bar" id="bar"><i id="barFill"></i></div>
   </div>
 
@@ -457,10 +490,6 @@ body[data-screen="result"] :is(#start,#cab){display:none}
 
   <div class="boardWrap" id="boardWrap"><div class="board" id="board"></div><div id="shout" aria-hidden="true"></div></div>
 
-  <div class="under" id="under">
-    <div class="snd"><button class="ghost tgl-bgm" type="button">음악 켬</button><button class="ghost tgl-sfx" type="button">효과음 켬</button></div>
-    <button class="ghost" id="quit" type="button">그만하기</button>
-  </div>
   </div>
 
   <section class="panel" id="result">
@@ -778,8 +807,9 @@ function bgmTick(){
 function bgmStart(){ bgmStop(); if(muted||musicOff||!ac()) return; BGM.step=0; BGM.next=AC.currentTime+.08; BGM.timer=setInterval(bgmTick,40); }
 function bgmStop(){ clearInterval(BGM.timer); BGM.timer=0; }
 function syncSnd(){
-  document.querySelectorAll(".tgl-bgm").forEach(b=>{ b.textContent=musicOff?"음악 끔":"음악 켬"; b.setAttribute("aria-pressed",!musicOff); });
-  document.querySelectorAll(".tgl-sfx").forEach(b=>{ b.textContent=muted?"효과음 끔":"효과음 켬"; b.setAttribute("aria-pressed",!muted); });
+  const set=(b,off,name)=>{ if(b.classList.contains("ic")){ b.classList.toggle("off",off); b.setAttribute("aria-label",name+(off?" 끔":" 켬")); } else b.textContent=name+(off?" 끔":" 켬"); b.setAttribute("aria-pressed",!off); };
+  document.querySelectorAll(".tgl-bgm").forEach(b=>set(b,musicOff,"음악"));
+  document.querySelectorAll(".tgl-sfx").forEach(b=>set(b,muted,"효과음"));
 }
 
 /* ---------- 밭 만들기 ---------- */
@@ -868,7 +898,7 @@ function mult(){ return Math.min(5, 1+Math.floor(S.combo/5)); }
 function setCombo(n){
   if(S){ S.combo=n; S.maxCombo=Math.max(S.maxCombo,n); }
   const el=$("combo"); const m=S?mult():1;
-  el.textContent = n + (m>1 ? " ×"+m : "");
+  el.textContent = n + (m>1 ? "×"+m : "");
   el.classList.toggle("hot",m>1);
   board.classList.toggle("x3",m>=3);
   if(n>0){ el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
