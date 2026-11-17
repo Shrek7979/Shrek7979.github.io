@@ -370,6 +370,11 @@ body[data-screen="play"] .board{width:min(100%, max(200px, calc((100dvh - 300px)
 .dots{letter-spacing:.12em; color:#E5262B; font-size:.75em}
 .review .shp{width:1.3em; height:1.3em}
 
+/* 최종 판 크기 */
+body[data-screen="play"] .board{width:min(100%, max(200px, calc((100dvh - 312px) / 1.36)))}
+@media (min-width:900px){ body[data-screen="play"] .board{width:min(680px, calc((100dvh - 236px) / 1.36))} }
+@media (orientation:landscape) and (max-height:560px){ body[data-screen="play"] .board{width:calc((100dvh - 70px) / 1.36)} }
+
 /*GEO*/
 .m{aspect-ratio:691/750} .pic{aspect-ratio:691/750}
 .m::before,.pic::before{display:none}
