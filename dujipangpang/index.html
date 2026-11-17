@@ -715,11 +715,13 @@ function rSame(){
   }};
 }
 
+/* 미션별 생각 시간 배수: 계산이 필요한 미션일수록 두더지가 오래 나와 있다 */
+const TH=(f,k)=>()=>Object.assign(f(),{think:k});
 const LEVELS={
-  k:{name:"저학년", read:1.55, rules:[rShape,rCount,rLegs,rBigger,rTen,rSame]},
-  e:{name:"초등", read:1.0,  rules:[rMultiple,rDivisor,rTarget,rHalf,rAcute]},
-  m:{name:"중등", read:1.2,  rules:[rPrime,poolRule("음수","계산 결과가 <em>음수</em>인 것만!",NEG_POOL),rSquare,poolRule("무리수","<em>무리수</em>만 잡아라!",IRR_POOL),rSlope,rRoot]},
-  h:{name:"고등", read:1.5,  rules:[poolRule("값이 정수","값이 <em>정수</em>인 것만!",INT_POOL),rTrig,poolRule("실수인 것","<em>실수</em>인 것만!",CPX_POOL),rDisc,poolRule("x−1이 인수","<em>x−1</em>을 인수로 갖는 것만!",FACTOR_POOL)]}
+  k:{name:"저학년", read:1.55, rules:[rShape,TH(rCount,1.25),rLegs,rBigger,TH(rTen,1.4),TH(rSame,1.15)]},
+  e:{name:"초등", read:1.0,  rules:[TH(rMultiple,1.15),TH(rDivisor,1.25),TH(rTarget,1.7),TH(rHalf,1.5),rAcute]},
+  m:{name:"중등", read:1.2,  rules:[TH(rPrime,1.2),TH(poolRule("음수","계산 결과가 <em>음수</em>인 것만!",NEG_POOL),1.6),TH(rSquare,1.2),TH(poolRule("무리수","<em>무리수</em>만 잡아라!",IRR_POOL),1.3),TH(rSlope,1.3),TH(rRoot,1.9)]},
+  h:{name:"고등", read:1.5,  rules:[TH(poolRule("값이 정수","값이 <em>정수</em>인 것만!",INT_POOL),1.7),TH(rTrig,1.6),TH(poolRule("실수인 것","<em>실수</em>인 것만!",CPX_POOL),1.7),TH(rDisc,2.4),TH(poolRule("x−1이 인수","<em>x−1</em>을 인수로 갖는 것만!",FACTOR_POOL),2.2)]}
 };
 
 /* ---------- 소리 ---------- */
@@ -822,7 +824,7 @@ function demo(){
 
 /* ---------- 게임 상태 ---------- */
 const TOTAL=60, MISSION=12, NEXT={e:"m",m:"h"};
-const prog = () => Math.min(1,(S.mi+(MISSION-S.mLeft)/MISSION)/8);
+const prog = () => Math.min(1,(S.mi+Math.max(0,Math.min(1,(MISSION-S.mLeft)/MISSION)))/8);
 let S=null, level="k", diff="n";
 const DIFF={e:{name:"쉬움",up:1.4,gap:1.3,pts:1},n:{name:"보통",up:1,gap:1,pts:1.5},h:{name:"어려움",up:.7,gap:.75,pts:2}};
 const bestKey = l => "mole-best-"+l;
@@ -854,7 +856,8 @@ function nextMission(){
   if(S.mi>0) S.left=Math.min(TOTAL,S.left+3);
   if(S.inLv>=3 && NEXT[S.lv]){ S.lv=NEXT[S.lv]; S.inLv=0; S.qi=0; S.queue=shuffle(LEVELS[S.lv].rules.slice()); promoted=true; S.promos++; }
   S.rule=S.queue[S.qi++ % S.queue.length](); S.inLv++;
-  S.mLeft=MISSION; S.freeze=promoted?1.8:1.1; S.spawn=0; S.dry=0;
+  S.think=S.rule.think||1;
+  S.mLeft=MISSION*(S.think>=1.6?1.5:S.think>=1.25?1.25:1); S.freeze=promoted?1.8:1.1; S.spawn=0; S.dry=0;
   S.stat={name:LEVELS[S.lv].name+" · "+S.rule.short, ok:0, bad:0, miss:0}; S.stats.push(S.stat);
   $("mNo").textContent=(promoted?LEVELS[S.lv].name+"으로 승급! · ":LEVELS[S.lv].name+" · ")+"LAP "+(S.mi+1)+(S.mi>0?" · +3초":"");
   $("mText").innerHTML=S.rule.title;
@@ -901,7 +904,7 @@ function endFever(){ S.fever=0; wrap.classList.remove("fever"); }
 function spawn(){
   const p=prog(), fv=S.fever>0;
   const active=cells.filter(c=>c.cur).length;
-  if(active >= 2+Math.floor(p*2.6)+(fv?2:0)) return;
+  if(active >= (S.think>=1.6?2:2)+Math.floor(p*(S.think>=1.6?1.2:2.6))+(fv?2:0)) return;
   const free=cells.filter(c=>!c.cur && S.t>=c.freeAt);
   if(!free.length) return;
   let want=fv||Math.random()<.5;
@@ -911,7 +914,7 @@ function spawn(){
   S.dry = item.ok ? 0 : S.dry+1;
   if(item.ok && S.mi>0){ const r=Math.random(); if(r<.12) item.gold=true; else if(r<.19) item.ice=true; }
   const c=pick(free);
-  const up=(2.0-0.95*p)*LEVELS[S.lv].read*DIFF[S.diff].up;
+  const up=(2.0-0.75*p)*LEVELS[S.lv].read*DIFF[S.diff].up*S.think;
   c.cur={item, until:S.t+up, hit:false};
   show(c,item);
   if(!fv && Math.random()<.35) say(c, S.rule.bluff && Math.random()<.5 ? S.rule.bluff : pick(BLUFFS));
@@ -965,7 +968,7 @@ function frame(now){
     if(S.mLeft<=0) nextMission();
     else{
       S.spawn-=dt;
-      if(S.spawn<=0){ spawn(); const p=prog(); S.spawn=(.85-.47*p)*(.85+.15*LEVELS[S.lv].read)*(S.fever>0?.5:1)*DIFF[S.diff].gap; }
+      if(S.spawn<=0){ spawn(); const p=prog(); S.spawn=(.85-.47*p)*(.85+.15*LEVELS[S.lv].read)*(S.fever>0?.5:1)*DIFF[S.diff].gap*Math.sqrt(S.think); }
     }
   }
   const left=Math.max(0,S.left), sec=Math.ceil(left);
